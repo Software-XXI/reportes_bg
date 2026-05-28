@@ -1,0 +1,435 @@
+---
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <title>Reportes BG</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: #0a0a0a;
+        color: #f0f0f0;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        text-align: center;
+        padding: 16px;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: #ccc;
+        flex-shrink: 0;
+      }
+
+      .preview-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+        background: #111;
+        min-height: 240px;
+      }
+
+      #video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: none;
+      }
+
+      #capturedPreview {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        display: none;
+      }
+
+      .placeholder {
+        color: #555;
+        font-size: 15px;
+        text-align: center;
+        padding: 20px;
+      }
+
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #222;
+        border-top-color: #888;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        display: none;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .result-area {
+        display: none;
+        padding: 20px;
+        max-height: 35vh;
+        overflow-y: auto;
+        background: #141414;
+        border-top: 1px solid #222;
+        flex-shrink: 0;
+      }
+
+      .result-area.show {
+        display: block;
+      }
+
+      .result-area p {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #ddd;
+        white-space: pre-wrap;
+      }
+
+      .error-text {
+        color: #ff6b6b;
+        font-size: 13px;
+        text-align: center;
+        padding: 10px 16px;
+        display: none;
+        flex-shrink: 0;
+      }
+
+      .error-text.show {
+        display: block;
+      }
+
+      .result-footer {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 12px;
+      }
+
+      .btn-copy {
+        background: none;
+        border: 1px solid #333;
+        color: #888;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: 0.15s;
+      }
+
+      .btn-copy:active {
+        background: #1a1a1a;
+      }
+
+      .btn-copy.copied {
+        color: #8fdaaf;
+        border-color: #2a6a4a;
+      }
+
+      .bottom-bar {
+        padding: 16px 20px;
+        padding-bottom: calc(16px + env(safe-area-inset-bottom));
+        flex-shrink: 0;
+        background: #0a0a0a;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 18px;
+        font-size: 17px;
+        font-weight: 600;
+        border: none;
+        border-radius: 14px;
+        cursor: pointer;
+        transition: background 0.2s, transform 0.1s;
+        touch-action: manipulation;
+      }
+
+      .btn:active {
+        transform: scale(0.97);
+      }
+
+      .btn-primary {
+        background: #3a6ea5;
+        color: #fff;
+      }
+
+      .btn-primary:active {
+        background: #2d5885;
+      }
+
+      .btn-primary.loading {
+        background: #2a4a6a;
+        pointer-events: none;
+      }
+
+      .btn-primary.done {
+        background: #2a6a4a;
+      }
+
+      .btn-primary.done:active {
+        background: #1f5238;
+      }
+
+      .btn-secondary {
+        background: #2a2a2a;
+        color: #f0f0f0;
+        border: 1px solid #444;
+      }
+
+      .btn-secondary:active {
+        background: #3a3a3a;
+      }
+
+      #fileInput {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header>Reportes BG</header>
+
+    <div class="preview-container">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="capturedPreview" alt="Preview" />
+      <div class="spinner" id="spinner"></div>
+      <div class="placeholder" id="placeholder">
+        Presiona "Abrir cámara" para empezar
+      </div>
+    </div>
+
+    <div class="error-text" id="errorText"></div>
+
+    <div class="result-area" id="resultArea">
+      <p id="resultText"></p>
+      <div class="result-footer">
+        <button class="btn-copy" id="btnCopy">📋 Copiar</button>
+      </div>
+    </div>
+
+    <div class="bottom-bar">
+      <button class="btn btn-primary" id="btnMain">Abrir cámara</button>
+      <button class="btn btn-secondary" id="btnUpload" style="display:none">
+        Subir imagen
+      </button>
+      <input type="file" id="fileInput" accept="image/*" />
+    </div>
+
+    <script>
+      (function () {
+        const video = document.getElementById("video");
+        const capturedPreview = document.getElementById("capturedPreview");
+        const placeholder = document.getElementById("placeholder");
+        const spinner = document.getElementById("spinner");
+        const btnMain = document.getElementById("btnMain");
+        const btnUpload = document.getElementById("btnUpload");
+        const fileInput = document.getElementById("fileInput");
+        const errorText = document.getElementById("errorText");
+        const resultArea = document.getElementById("resultArea");
+        const resultText = document.getElementById("resultText");
+        const btnCopy = document.getElementById("btnCopy");
+
+        let stream = null;
+        let cameraReady = false;
+
+        function hideAll() {
+          video.style.display = "none";
+          capturedPreview.style.display = "none";
+          spinner.style.display = "none";
+          placeholder.style.display = "none";
+          errorText.classList.remove("show");
+          resultArea.classList.remove("show");
+        }
+
+        function showPlaceholder(msg) {
+          hideAll();
+          placeholder.textContent = msg;
+          placeholder.style.display = "block";
+        }
+
+        function setBtnPrimary(text, className) {
+          btnMain.textContent = text;
+          btnMain.className = "btn btn-primary";
+          if (className) btnMain.classList.add(className);
+          btnMain.style.display = "block";
+          btnUpload.style.display = "none";
+        }
+
+        async function startCamera() {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: "environment", width: { ideal: 1920 } },
+              audio: false,
+            });
+            video.srcObject = stream;
+            hideAll();
+            video.style.display = "block";
+            cameraReady = true;
+            setBtnPrimary("Capturar foto");
+          } catch (err) {
+            console.error(err);
+            showPlaceholder(
+              'No se pudo acceder a la cámara. Usa "Subir imagen".'
+            );
+            btnMain.style.display = "none";
+            btnUpload.style.display = "block";
+            cameraReady = false;
+          }
+        }
+
+        function stopCamera() {
+          if (stream) {
+            stream.getTracks().forEach((t) => t.stop());
+            stream = null;
+          }
+          video.srcObject = null;
+          cameraReady = false;
+        }
+
+        function captureFrame() {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0);
+          return canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
+        }
+
+        async function analyzeImage(imageBase64) {
+          setBtnPrimary("Analizando...", "loading");
+          spinner.style.display = "block";
+          errorText.classList.remove("show");
+
+          try {
+            const res = await fetch("/api/groq", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ image: imageBase64 }),
+            });
+            const data = await res.json();
+
+            if (!res.ok) throw new Error(data.error || "Error del servidor");
+
+            video.style.display = "none";
+            capturedPreview.style.display = "block";
+            resultText.textContent = data.response;
+            resultArea.classList.add("show");
+            setBtnPrimary("Nueva foto", "done");
+            spinner.style.display = "none";
+          } catch (err) {
+            errorText.textContent = err.message;
+            errorText.classList.add("show");
+            setBtnPrimary("Reintentar", "");
+            spinner.style.display = "none";
+          }
+        }
+
+        function processFile(file) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const base64 = e.target.result.split(",")[1];
+            capturedPreview.src = e.target.result;
+            hideAll();
+            capturedPreview.style.display = "block";
+            analyzeImage(base64);
+          };
+          reader.readAsDataURL(file);
+        }
+
+        // --- Eventos ---
+
+        btnMain.addEventListener("click", function () {
+          const text = btnMain.textContent;
+
+          if (text === "Abrir cámara") {
+            showPlaceholder("Solicitando cámara...");
+            setBtnPrimary("Abrir cámara", "loading");
+            startCamera();
+            return;
+          }
+
+          if (text === "Capturar foto") {
+            const imageBase64 = captureFrame();
+            capturedPreview.src = `data:image/jpeg;base64,${imageBase64}`;
+            hideAll();
+            capturedPreview.style.display = "block";
+            stopCamera();
+            analyzeImage(imageBase64);
+            return;
+          }
+
+          if (text === "Nueva foto") {
+            stopCamera();
+            capturedPreview.style.display = "none";
+            resultArea.classList.remove("show");
+            errorText.classList.remove("show");
+            showPlaceholder('Presiona "Abrir cámara" para empezar');
+            setBtnPrimary("Abrir cámara");
+            return;
+          }
+
+          if (text === "Reintentar") {
+            errorText.classList.remove("show");
+            capturedPreview.style.display = "none";
+            showPlaceholder("Solicitando cámara...");
+            setBtnPrimary("Abrir cámara", "loading");
+            startCamera();
+            return;
+          }
+        });
+
+        btnUpload.addEventListener("click", function () {
+          fileInput.click();
+        });
+
+        fileInput.addEventListener("change", function () {
+          if (this.files && this.files[0]) {
+            processFile(this.files[0]);
+          }
+        });
+
+        btnCopy.addEventListener("click", async function () {
+          try {
+            await navigator.clipboard.writeText(resultText.textContent);
+            btnCopy.textContent = "✓ Copiado";
+            btnCopy.classList.add("copied");
+            setTimeout(() => {
+              btnCopy.textContent = "📋 Copiar";
+              btnCopy.classList.remove("copied");
+            }, 2000);
+          } catch {}
+        });
+
+        // Fallback: si el usuario carga imagen desde galería
+        // cuando la cámara ya está activa
+        btnMain.addEventListener("contextmenu", function (e) {
+          e.preventDefault();
+          fileInput.click();
+        });
+      })();
+    </script>
+  </body>
+</html>
