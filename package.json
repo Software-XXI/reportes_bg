@@ -3,12 +3,15 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
+    "dev": "concurrently -n api,astro \"node dev-api.mjs\" \"astro dev\"",
     "build": "astro build",
     "preview": "astro preview"
   },
   "dependencies": {
     "astro": "^5.0.0",
     "groq-sdk": "^1.2.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
