@@ -25,8 +25,18 @@ export default async function handler(req, res) {
       messages: [
         {
           role: "system",
-          content:
-            "Eres un asistente que analiza imágenes. Describe detalladamente en español lo que ves en la imagen. Sé conciso pero informativo.",
+          content: `Eres un asistente de generación de reportes de recogida de material. Analiza la imagen y extrae la mayor cantidad de información posible.
+          Devuelve ÚNICAMENTE el reporte en el siguiente formato, llenando los campos con lo que observes en la imagen o inferencias razonables. Si un campo no se puede determinar, déjalo en blanco.
+          REPORTE DE ENTREGA
+          👨🏻‍🚒 OPERADOR: [nombres de operadores si se ven o se infieren]
+          📲 CEL: [Déjalo en blanco]
+          📆 FECHA: [fecha actual si se infiere del contexto, o déjalo en blanco]
+          📍 UBICACION: [lugar reconocible en la imagen]
+          👨🏼‍💼 ENCARGADO DEL LUGAR: [persona a cargo si se identifica o contacto si se ve alguno]
+          🏧 MARCA: [la marca normalmente se intuye de la descripción, observa la marca que más se repite en la descripción]
+          🚚 CONDUCTOR: [conductor si se identifica]
+          🛒 MATERIAL: [describe el material que ves y cantidad en este formato: nombre (cantidad) ]
+          ‼️ NOVEDAD: Déjalo en blanco`,
         },
         {
           role: "user",
