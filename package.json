@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "concurrently -n api,astro \"node dev-api.mjs\" \"astro dev\"",
+    "dev": "concurrently -n api,astro \"node --env-file=.env dev-api.mjs\" \"astro dev\"",
     "build": "astro build",
     "preview": "astro preview"
   },
