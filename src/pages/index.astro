@@ -240,6 +240,13 @@
 
     <script>
       (function () {
+        if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+          document.getElementById("placeholder").textContent = "Esta app requiere HTTPS para usar la cámara en iOS.";
+          document.getElementById("btnMain").style.display = "none";
+          document.getElementById("btnUpload").style.display = "block";
+          return;
+        }
+
         const video = document.getElementById("video");
         const capturedPreview = document.getElementById("capturedPreview");
         const placeholder = document.getElementById("placeholder");
@@ -290,13 +297,25 @@
             cameraReady = true;
             setBtnPrimary("Capturar foto");
           } catch (err) {
-            console.error(err);
-            showPlaceholder(
-              'No se pudo acceder a la cámara. Usa "Subir imagen".'
-            );
-            btnMain.style.display = "none";
-            btnUpload.style.display = "block";
-            cameraReady = false;
+            try {
+              stream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 1920 } },
+                audio: false,
+              });
+              video.srcObject = stream;
+              hideAll();
+              video.style.display = "block";
+              cameraReady = true;
+              setBtnPrimary("Capturar foto");
+            } catch (err2) {
+              console.error(err, err2);
+              showPlaceholder(
+                'No se pudo acceder a la cámara. Usa "Subir imagen".'
+              );
+              btnMain.style.display = "none";
+              btnUpload.style.display = "block";
+              cameraReady = false;
+            }
           }
         }
 
@@ -310,11 +329,19 @@
         }
 
         function captureFrame() {
+          const MAX = 1280;
+          let w = video.videoWidth;
+          let h = video.videoHeight;
+          if (w > MAX || h > MAX) {
+            const ratio = Math.min(MAX / w, MAX / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+          }
           const canvas = document.createElement("canvas");
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
+          canvas.width = w;
+          canvas.height = h;
           const ctx = canvas.getContext("2d");
-          ctx.drawImage(video, 0, 0);
+          ctx.drawImage(video, 0, 0, w, h);
           return canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
         }
 
@@ -350,11 +377,28 @@
         function processFile(file) {
           const reader = new FileReader();
           reader.onload = function (e) {
-            const base64 = e.target.result.split(",")[1];
-            capturedPreview.src = e.target.result;
-            hideAll();
-            capturedPreview.style.display = "block";
-            analyzeImage(base64);
+            const img = new Image();
+            img.onload = function () {
+              const MAX = 1280;
+              let w = img.naturalWidth;
+              let h = img.naturalHeight;
+              if (w > MAX || h > MAX) {
+                const ratio = Math.min(MAX / w, MAX / h);
+                w = Math.round(w * ratio);
+                h = Math.round(h * ratio);
+              }
+              const canvas = document.createElement("canvas");
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext("2d");
+              ctx.drawImage(img, 0, 0, w, h);
+              const base64 = canvas.toDataURL("image/jpeg", 0.8).split(",")[1];
+              capturedPreview.src = canvas.toDataURL("image/jpeg", 0.8);
+              hideAll();
+              capturedPreview.style.display = "block";
+              analyzeImage(base64);
+            };
+            img.src = e.target.result;
           };
           reader.readAsDataURL(file);
         }
@@ -411,16 +455,36 @@
           }
         });
 
+        function showCopied() {
+          btnCopy.textContent = "✓ Copiado";
+          btnCopy.classList.add("copied");
+          setTimeout(() => {
+            btnCopy.textContent = "📋 Copiar";
+            btnCopy.classList.remove("copied");
+          }, 2000);
+        }
+
         btnCopy.addEventListener("click", async function () {
+          const text = resultText.textContent;
           try {
-            await navigator.clipboard.writeText(resultText.textContent);
-            btnCopy.textContent = "✓ Copiado";
-            btnCopy.classList.add("copied");
-            setTimeout(() => {
-              btnCopy.textContent = "📋 Copiar";
-              btnCopy.classList.remove("copied");
-            }, 2000);
-          } catch {}
+            await navigator.clipboard.writeText(text);
+            showCopied();
+          } catch {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+              document.execCommand("copy");
+              showCopied();
+            } catch {
+              errorText.textContent = "No se pudo copiar al portapapeles";
+              errorText.classList.add("show");
+            }
+            document.body.removeChild(ta);
+          }
         });
 
         // Fallback: si el usuario carga imagen desde galería
