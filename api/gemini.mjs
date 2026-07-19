@@ -1,4 +1,4 @@
-import { analyzeImage } from "../lib/groq.mjs";
+import { analyzeImage } from "../lib/gemini.mjs";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {

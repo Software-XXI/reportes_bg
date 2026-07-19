@@ -1,5 +1,5 @@
 import { createServer } from "http";
-import { analyzeImage } from "./lib/groq.mjs";
+import { analyzeImage } from "./lib/gemini.mjs";
 
 const PORT = 3001;
 
