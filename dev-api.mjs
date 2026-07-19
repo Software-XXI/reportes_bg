@@ -10,7 +10,7 @@ function jsonResponse(res, status, data) {
 
 createServer(async (req, res) => {
   try {
-    if (req.url === "/api/groq" && req.method === "POST") {
+    if (req.url === "/api/gemini" && req.method === "POST") {
       let body = "";
       req.on("data", (chunk) => (body += chunk));
       req.on("error", () => {
