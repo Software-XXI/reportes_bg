@@ -356,9 +356,15 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ image: imageBase64 }),
             });
-            const data = await res.json();
 
-            if (!res.ok) throw new Error(data.error || "Error del servidor");
+            let data;
+            try {
+              data = await res.json();
+            } catch {
+              throw new Error("Error de conexión con el servidor.");
+            }
+
+            if (!res.ok) throw new Error(data.error || "Error del servidor.");
 
             video.style.display = "none";
             capturedPreview.style.display = "block";
