@@ -207,9 +207,84 @@
       #fileInput {
         display: none;
       }
+
+      .modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        padding: 20px;
+      }
+
+      .modal-overlay.hidden {
+        display: none;
+      }
+
+      .modal {
+        width: 100%;
+        max-width: 360px;
+        background: #141414;
+        border: 1px solid #333;
+        border-radius: 14px;
+        padding: 24px;
+      }
+
+      .modal h2 {
+        font-size: 17px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        color: #f0f0f0;
+      }
+
+      .modal p {
+        font-size: 13px;
+        color: #888;
+        margin-bottom: 16px;
+      }
+
+      .modal input {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        background: #0a0a0a;
+        color: #f0f0f0;
+        border: 1px solid #444;
+        border-radius: 10px;
+        outline: none;
+        margin-bottom: 16px;
+      }
+
+      .modal input:focus {
+        border-color: #3a6ea5;
+      }
     </style>
   </head>
   <body>
+    <div class="modal-overlay hidden" id="operadorModal">
+      <div class="modal">
+        <h2>Datos del operador</h2>
+        <p>Escribe tu nombre y celular para identificarte en los reportes.</p>
+        <input
+          type="text"
+          id="operadorInput"
+          placeholder="Tu nombre"
+          autocomplete="name"
+          maxlength="60"
+        />
+        <input
+          type="tel"
+          id="celInput"
+          placeholder="Tu celular"
+          autocomplete="tel"
+          maxlength="20"
+        />
+        <button class="btn btn-primary" id="btnSaveOperador">Confirmar</button>
+      </div>
+    </div>
+
     <header>Reportes BG</header>
 
     <div class="preview-container">
@@ -258,6 +333,48 @@
         const resultArea = document.getElementById("resultArea");
         const resultText = document.getElementById("resultText");
         const btnCopy = document.getElementById("btnCopy");
+        const operadorModal = document.getElementById("operadorModal");
+        const operadorInput = document.getElementById("operadorInput");
+        const celInput = document.getElementById("celInput");
+        const btnSaveOperador = document.getElementById("btnSaveOperador");
+
+        const OPERADOR_KEY = "bg_operador";
+        const CEL_KEY = "bg_cel";
+
+        function getOperador() {
+          return localStorage.getItem(OPERADOR_KEY) || "";
+        }
+
+        function getCel() {
+          return localStorage.getItem(CEL_KEY) || "";
+        }
+
+        function showOperadorModal() {
+          operadorInput.value = getOperador();
+          celInput.value = getCel();
+          operadorModal.classList.remove("hidden");
+          operadorInput.focus();
+        }
+
+        if (!getOperador() || !getCel()) {
+          showOperadorModal();
+        }
+
+        btnSaveOperador.addEventListener("click", function () {
+          const nombre = operadorInput.value.trim();
+          const cel = celInput.value.trim();
+          if (!nombre || !cel) {
+            (nombre ? celInput : operadorInput).focus();
+            return;
+          }
+          localStorage.setItem(OPERADOR_KEY, nombre);
+          localStorage.setItem(CEL_KEY, cel);
+          operadorModal.classList.add("hidden");
+        });
+
+        operadorInput.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") btnSaveOperador.click();
+        });
 
         let stream = null;
         let cameraReady = false;
@@ -354,7 +471,11 @@
             const res = await fetch("/api/gemini", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ image: imageBase64 }),
+              body: JSON.stringify({
+                image: imageBase64,
+                operador: getOperador(),
+                cel: getCel(),
+              }),
             });
 
             let data;
@@ -366,9 +487,24 @@
 
             if (!res.ok) throw new Error(data.error || "Error del servidor.");
 
+            const operador = getOperador();
+            const cel = getCel();
+            let response = data.response;
+            if (operador) {
+              response = response.replace(
+                /^👨🏻‍🚒\s*OPERADOR:.*$/m,
+                `👨🏻‍🚒 OPERADOR: ${operador}`
+              );
+            }
+            if (cel) {
+              response = response.replace(
+                /^📲\s*CEL:.*$/m,
+                `📲 CEL: ${cel}`
+              );
+            }
             video.style.display = "none";
             capturedPreview.style.display = "block";
-            resultText.textContent = data.response;
+            resultText.textContent = response;
             resultArea.classList.add("show");
             setBtnPrimary("Nueva foto", "done");
             spinner.style.display = "none";
